@@ -108,7 +108,8 @@ func main() {
 | `agent` | AgentRuntime、Request/Result、Strategy 与策略工厂 |
 | `scope` | Env、单次运行 Scope、统计状态和公开 Builder |
 | `event` | 运行领域事件、EventSink 与 FanoutSink |
-| `strategy/toolloop` | 模型与工具循环策略实现 |
+| `strategy/toolloop` | 支持多轮工具调用的模型循环策略 |
+| `strategy/singleturn` | 只执行一次模型生成、不暴露工具的单轮策略 |
 | `model` | 模型描述、请求响应与 Executor 契约 |
 | `provider` | Provider 描述与协议类型 |
 | `provider/openai` | OpenAI Chat Completions 执行器（含工具调用）| 
