@@ -8,6 +8,7 @@ import (
 	"github.com/JIAOZAI1/agent-go/prompt"
 	"github.com/JIAOZAI1/agent-go/session"
 	"github.com/JIAOZAI1/agent-go/tool"
+	"github.com/JIAOZAI1/agent-go/trim"
 )
 
 // RunEnv is the shared capability set held by every run strategy. Concrete
@@ -21,6 +22,7 @@ type RunEnv struct {
 	Renderer  prompt.Renderer // optional; nil means no system prompt
 	Store     session.Store   // optional; nil means stateless single-turn
 	EventSink EventSink       // optional; nil means no events
+	Trimmer   trim.Trimmer    // optional; bounds the loaded history sent each turn; nil means send it untouched
 }
 
 // validateRunEnv validates a RunEnv shared by every strategy constructor.

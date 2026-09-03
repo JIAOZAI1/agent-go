@@ -14,6 +14,7 @@ import (
 	"github.com/JIAOZAI1/agent-go/prompt"
 	"github.com/JIAOZAI1/agent-go/session"
 	"github.com/JIAOZAI1/agent-go/tool"
+	"github.com/JIAOZAI1/agent-go/trim"
 )
 
 const (
@@ -48,6 +49,14 @@ type ToolLoopOptions struct {
 	MaxTurns            int
 	MaxToolCallsPerTurn int
 	StopOnToolError     bool
+	// Trimmer optionally bounds the loaded session history before it is sent
+	// to the model each turn. nil disables trimming (send history untouched).
+	Trimmer trim.Trimmer
+	// TrimBudget caps the trimmed loaded history in bytes when > 0. When left at
+	// 0, a default fallback budget is used so an explicit Trimmer still trims.
+	// Callers should set this to a value derived from their model's context
+	// window to match a specific deployment.
+	TrimBudget int
 }
 
 // ToolLoopAgent orchestrates a model generation / tool execution loop: it
@@ -68,6 +77,8 @@ type ToolLoopAgent struct {
 	maxToolCallsPerTurn int
 	stopOnToolError     bool
 	toolSpecs           []tool.Spec
+	trimmer             trim.Trimmer
+	trimBudget          int
 }
 
 // NewToolLoopAgent validates options and returns an immutable orchestrator.
@@ -110,6 +121,8 @@ func NewToolLoopAgent(options ToolLoopOptions) (*ToolLoopAgent, error) {
 		maxToolCallsPerTurn: maxToolCalls,
 		stopOnToolError:     options.StopOnToolError,
 		toolSpecs:           specs,
+		trimmer:             options.Trimmer,
+		trimBudget:          trimBudget(options.Trimmer, options.TrimBudget),
 	}, nil
 }
 
@@ -151,6 +164,13 @@ func (a *ToolLoopAgent) Run(ctx context.Context, request RunRequest) (RunResult,
 			return a.fail(ctx, scope, "session_load_failed", err)
 		}
 		snapshot = loaded
+	}
+
+	// Optionally trim the loaded session history so a long-running conversation
+	// stays within a bounded working set before it is sent to the model. This
+	// only affects this run's snapshot; the session store is untouched.
+	if a.trimmer != nil && a.store != nil {
+		snapshot.Messages = a.trimmer.Trim(snapshot.Messages, a.trimBudget)
 	}
 
 	history := append(message.CloneSlice(snapshot.Messages), message.Clone(request.Input))
@@ -325,6 +345,27 @@ func toolErrorMessage(call message.ToolCall, err error) message.Message {
 	msg.ToolCallID = call.ID
 	msg.IsError = true
 	return msg
+}
+
+// trimHistoryDefaultBytes is the fallback working-set budget for the loaded
+// session history when no explicit TrimBudget is set and a Trimmer is
+// configured. It keeps roughly the last few KB of conversation so trimming
+// stays deterministic out of the box. Deployments that need tighter control
+// should pass an explicit TrimBudget derived from their model's context window.
+const trimHistoryDefaultBytes = 8192
+
+// trimBudget resolves the byte budget for trimming the loaded history. It
+// returns 0 (disable) when no Trimmer is set. Otherwise it prefers an explicit
+// TrimBudget and falls back to trimHistoryDefaultBytes so an explicitly
+// configured Trimmer still trims even when the caller does not supply a budget.
+func trimBudget(trimmer trim.Trimmer, explicit int) int {
+	if trimmer == nil {
+		return 0
+	}
+	if explicit > 0 {
+		return explicit
+	}
+	return trimHistoryDefaultBytes
 }
 
 func newRunID() (string, error) {

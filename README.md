@@ -104,7 +104,9 @@ func main() {
 | `tool` | Tool Spec/Call/Result 与注册执行运行时（Runtime/Builder）| 
 | `prompt` | 静态与模板化 system prompt 渲染 |
 | `session` | 带 revision 乐观锁的会话历史存储 |
+| `trim` | 在送入模型前对加载的会话历史做受限上下文裁剪 |
+| `examples` | 可直接 `go run` 的组件拼接演示（见 [examples/README.md](examples/README.md)）|
 
 ## 当前状态与路线
 
-项目正处于基础组件陆续落地阶段：已完成结构化消息、Prompt、Session 与运行策略(含 ToolLoop 与 RunScope 状态管理)、工具系统与 OpenAI 工具调用执行器，CI 与 Release 已自动化。后续将围绕上下文裁剪、持久化存储与更多的运行策略逐步补充。
+项目正处于基础组件陆续落地阶段：已完成结构化消息、Prompt、Session、工具系统、OpenAI 工具调用执行器，以及运行策略(含 ToolLoop 与 RunScope 状态管理)与一个用于有界上下文的 `trim` 流水线；CI 与 Release 已自动化，`examples/` 下提供了可离线的 `go run` 演示。后续将围绕持久化存储、更多的运行策略以及更多 provider 适配逐步补充。
