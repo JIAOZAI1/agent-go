@@ -104,9 +104,13 @@ func main() {
 | `tool` | Tool Spec/Call/Result 与注册执行运行时（Runtime/Builder）| 
 | `prompt` | 静态与模板化 system prompt 渲染 |
 | `session` | 带 revision 乐观锁的会话历史存储 |
+| `session/sqlite` | `session.Store` 的 SQLite 持久化实现（纯 Go，见下方依赖提示）|
 | `trim` | 在送入模型前对加载的会话历史做受限上下文裁剪 |
+| `builtin` | 预写好的文件/命令工具对象（NewRead/NewEdit/NewBash），需手动 `AddTool` 后才生效；默认不对任何 Agent 自动挂载 |
 | `examples` | 可直接 `go run` 的组件拼接演示（见 [examples/README.md](examples/README.md)）|
+
+> **依赖提示**：本库大多数子包零第三方依赖。`session/sqlite` 为 `session.Store` 提供 SQLite 持久化，实现基于纯 Go 的 `modernc.org/sqlite`；只有当你 import 该子包时，对应依赖才会进入你的 module 依赖图。
 
 ## 当前状态与路线
 
-项目正处于基础组件陆续落地阶段：已完成结构化消息、Prompt、Session、工具系统、OpenAI 工具调用执行器，以及运行策略(含 ToolLoop 与 RunScope 状态管理)与一个用于有界上下文的 `trim` 流水线；CI 与 Release 已自动化，`examples/` 下提供了可离线的 `go run` 演示。后续将围绕持久化存储、更多的运行策略以及更多 provider 适配逐步补充。
+项目正处于基础组件陆续落地阶段：已完成结构化消息、Prompt、Session（含 `session/sqlite` SQLite 持久化参考实现）、工具系统、OpenAI 工具调用执行器，以及运行策略(含 ToolLoop 与 RunScope 状态管理)与一个用于有界上下文的 `trim` 流水线；CI 与 Release 已自动化，`examples/` 下提供了可离线的 `go run` 演示。后续将围绕更多的运行策略以及更多 provider 适配逐步补充。
