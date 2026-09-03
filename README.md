@@ -90,7 +90,7 @@ func main() {
 
 - `agent` 下层细分为可单独引入的原子包（`model` / `message` / `tool` / `prompt` / `session` 等），可按需选择，避免整包耦合。
 - `agent` 包持有一致的 `RunEnv` / `RunRequest` / `RunResult` 公共契约，运行策略（如 `ToolLoopAgent`）围绕它们编程。
-- 完整可运行示例见 `examples/`（若有）；版本间发布通过语义化 tag + GitHub Actions Release 自动完成（见 [Git提交规范.md](Git提交规范.md) §12）。
+- 版本间的发布通过语义化 tag 自动完成：可 `git tag vX.Y.Z && git push origin vX.Y.Z` 触发 GitHub Actions `release` workflow 创建 GitHub Release（见仓库 `.github/workflows/release.yml`）。
 
 ## 包目录
 
@@ -104,14 +104,6 @@ func main() {
 | `tool` | Tool Spec/Call/Result 与注册执行运行时（Runtime/Builder）| 
 | `prompt` | 静态与模板化 system prompt 渲染 |
 | `session` | 带 revision 乐观锁的会话历史存储 |
-
-## 开发规范
-
-开发前请阅读：
-
-- [AGENTS.md](AGENTS.md)：项目协作与开发规范
-- [GO编码规范.md](GO编码规范.md)：Go 编码规范
-- [Git提交规范.md](Git提交规范.md)：Git 提交规范
 
 ## 当前状态与路线
 
