@@ -1,0 +1,41 @@
+# ===== Go 构建产物 =====
+# 可执行文件（库工程一般不直接出现；在根目录用 cmd/ 或 scripts 时忽略二进制）
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# 覆盖率 / 分析
+coverage.*
+*.cover
+*.prof
+
+# 生成的测试/临时二进制目录
+/bin/
+build/
+
+# Go module 缓存相关（本地下载目录通常不进库）
+# 若刻意 vendoring（提交依赖），请把下面这行去掉：
+/vendor/
+
+# ===== 编辑器 / IDE =====
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+*.swp
+*~
+.DS_Store
+
+# ===== 本地开发/协作规范（不发到公共库，供仓库维护者本地使用）=====
+CLAUDE.md
+AGENTS.md
+Git提交规范.md
+GO编码规范.md
