@@ -1,14 +1,109 @@
 # agent-go
 
-agent-go 是一个轻量级的 AI Agent 构建框架。
+agent-go 是一个轻量级的 AI Agent 构建框架，以“可导出的 Go 库”形式发布：
+你可以在自己的 Go 工程里通过模块路径直接 import 它的组成包，按需组合出不同类型的 Agent 应用。
 
-项目以“组件化、可组合”为核心设计方向，提供清晰、独立、可复用的 Agent 构建组件，支持按需组合出不同类型的 Agent 应用。
+项目以“组件化、可组合”为核心设计方向，提供清晰、独立、可复用的 Agent 构建组件。
 
 ## 项目概况
 
 - 技术栈：Go 1.26.6
 - 目标平台：Linux/amd64
+- 模块路径：`github.com/JIAOZAI1/agent-go`
 - 设计方向：以组件化、可组合为核心，同时保持模块职责清晰、依赖关系可控，并优先保证可靠性、可测试性和可维护性。
+
+## 安装与使用（作为 Go 库）
+
+将 agent-go 加入你的 Go 模块依赖：
+
+```bash
+# 拉取指定发布版本（推荐，使用带 vX.Y.Z 的语义化 tag）
+go get github.com/JIAOZAI1/agent-go@v0.1.0
+# 或拉取 main 分支的最新未打 Tag 版本（伪版本）
+go get github.com/JIAOZAI1/agent-go@latest
+```
+
+在代码里按包名引入所需组件，例如接入一个带工具调用能力的 Agent：
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "os"
+
+    "github.com/JIAOZAI1/agent-go/agent"
+    "github.com/JIAOZAI1/agent-go/message"
+    "github.com/JIAOZAI1/agent-go/model"
+    "github.com/JIAOZAI1/agent-go/provider/openai"
+    "github.com/JIAOZAI1/agent-go/session"
+    "github.com/JIAOZAI1/agent-go/tool"
+)
+
+func main() {
+    ctx := context.Background()
+
+    // 1) 模型执行器：绑定你选用的 provider + 具体 model。此处用 openai，key 从环境取。
+    executor, err := openai.NewExecutor(
+        model.Ref{ProviderID: "openai", ModelID: "gpt-4o"},
+        openai.Config{APIKey: os.Getenv("OPENAI_API_KEY")},
+    )
+    if err != nil {
+        panic(err)
+    }
+
+    // 2) 工具运行时：按需 AddTool / AddMiddleware。这里先不注册任何工具。
+    tools, err := tool.NewBuilder().Build()
+    if err != nil {
+        panic(err)
+    }
+
+    // 3) 持有会话历史（可选；Store 为 nil 即无状态单轮）
+    store := session.NewMemoryStore()
+    key := session.Key{Scope: "demo", ID: "session-1"}
+
+    // 4) 用公共能力约定组装 ToolLoop 运行策略（Executor 必填，Tools/Store 可选）
+    loop, err := agent.NewToolLoopAgent(agent.ToolLoopOptions{
+        Executor:  executor,
+        Tools:     tools,
+        Store:     store,
+        EventSink: nil, // 需要领域事件时传一个 agent.EventSink 实现（如 FanoutSink）
+    })
+    if err != nil {
+        panic(err)
+    }
+
+    // 5) 执行一轮，得到最终回复与端结束统计
+    result, err := loop.Run(ctx, agent.RunRequest{
+        SessionKey: key,
+        Input:      message.Text(message.RoleUser, "你好，请帮我查一下今天的天气。"),
+    })
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println(result.Stats) // 内含 turn/step/tool 与 token 统计
+}
+```
+
+说明：
+
+- `agent` 下层细分为可单独引入的原子包（`model` / `message` / `tool` / `prompt` / `session` 等），可按需选择，避免整包耦合。
+- `agent` 包持有一致的 `RunEnv` / `RunRequest` / `RunResult` 公共契约，运行策略（如 `ToolLoopAgent`）围绕它们编程。
+- 完整可运行示例见 `examples/`（若有）；版本间发布通过语义化 tag + GitHub Actions Release 自动完成（见 [Git提交规范.md](Git提交规范.md) §12）。
+
+## 包目录
+
+| 包 | 说明 |
+| --- | --- |
+| `agent` | 运行策略与运行契约（RunEnv/RunRequest/RunResult、ToolLoop、RunScope 状态）| 
+| `model` | 模型描述、请求响应与 Executor 契约 |
+| `provider` | Provider 描述与协议类型 |
+| `provider/openai` | OpenAI Chat Completions 执行器（含工具调用）| 
+| `message` | 结构化消息类型
+| `tool` | Tool Spec/Call/Result 与注册执行运行时（Runtime/Builder）| 
+| `prompt` | 静态与模板化 system prompt 渲染 |
+| `session` | 带 revision 乐观锁的会话历史存储 |
 
 ## 开发规范
 
@@ -18,17 +113,6 @@ agent-go 是一个轻量级的 AI Agent 构建框架。
 - [GO编码规范.md](GO编码规范.md)：Go 编码规范
 - [Git提交规范.md](Git提交规范.md)：Git 提交规范
 
-## 项目状态
+## 当前状态与路线
 
-项目当前处于基础建设阶段，已建立可供外部项目依赖的公开包边界：
-
-- `agent`：Agent 核心抽象；
-- `model`：模型描述和模型调用契约；
-- `provider`：Provider 描述和协议类型；
-- `provider/openai`：OpenAI Chat Completions 执行器；
-- `message`：Agent 与模型之间的消息类型；
-- `tool`：可组合工具的执行契约。
-- `prompt`：静态和模板化 system prompt 渲染；
-- `session`：带 revision 乐观并发控制的会话历史存储。
-
-当前已完成 Prompt、Session 和结构化消息基础组件；后续将围绕 Agent 运行策略补充组合实现、持久化存储和上下文裁剪。
+项目正处于基础组件陆续落地阶段：已完成结构化消息、Prompt、Session 与运行策略(含 ToolLoop 与 RunScope 状态管理)、工具系统与 OpenAI 工具调用执行器，CI 与 Release 已自动化。后续将围绕上下文裁剪、持久化存储与更多的运行策略逐步补充。

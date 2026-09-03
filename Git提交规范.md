@@ -220,3 +220,57 @@ Set the documented environment variables before upgrading.
 5. 是否关联已知任务或存在破坏性变更，决定是否添加脚注。
 
 最终提交信息必须以实际差异为依据，做到准确、简洁、可追溯。
+
+## 12. 版本发布（Publishing）
+
+agent-go 以「可导出的 Go 模块库」对外发布：**发布＝为一次提交打上不可变的语义化 tag 并推送到远端**。Go 消费者通过模块代理按该 tag 拉取指定版本；无需在发布物中附带二进制。
+
+### 12.1 版本与 tag 规范
+
+- 版本使用 Semantic Versioning `vMAJOR.MINOR.PATCH`（例如 `v0.1.0`、`v1.2.3`）。
+- 一旦打上并被公共代理缓存，该 tag 即**不可再移动/删除**（否则会破坏已消费方的依赖）。初版尚未对外被消费、且 release 失败重打除外，但应视为例外而非常态。
+- tag 推送到 `main` 上指向的某个提交，最好同时是已经合入 main 的提交。
+
+### 12.2 发布前检查
+
+发布提交在打 tag 前，应通过仓库的 CI 绿门（[.github/workflows/ci.yml](../.github/workflows/ci.yml)）：
+
+```text
+gofmt 检查、golangci-lint、go vet
+go build ./...、go test ./...（ubuntu / macOS / windows）
+go test -race ./...（仅 Linux/rg gcc runner）
+```
+
+本地可至少跑：
+
+```bash
+gofmt -w .
+go test ./...
+go vet ./...
+# 含并发逻辑时，在具备 gcc/CGO 的环境执行：
+go test -race ./...
+```
+
+### 12.3 发布步骤（新增特性/修复达成 main）
+
+```bash
+# 1. 确保 main 上待发布提交已通过 CI（绿），且本地已 pull 最新
+# 2. 打标签并推送（会自动触发 .github/workflows/release.yml 创建 GitHub Release）
+git tag v0.2.0
+git push origin v0.2.0
+# 可选：把含本次发布的 main 也同步 push
+git push origin main
+```
+
+release workflow 会执行 build + `go test -race` + vet，并创建指向该 tag 的 GitHub Release（含 release notes）。
+
+### 12.4 破坏性变更
+
+若切 minor/Major 之前存在破坏性 API/行为变更，务必在提交信息与 Release notes 中标注 `BREAKING CHANGE`（见 §6），并在新 major/minor tag 前发布说明迁移方式。
+
+### 12.5 维护者执行边界
+
+- 发布 tag 与 GitHub Release 需对仓库具备**写权限**（`repo`；推 workflow 文件/含其改动的提交需额外 `workflow` scope）。
+- 未经授权不擅自 push / 改历史；tag 一旦推送，破坏性重打需先征询，避免影响已消费方。
+- 该发布规范与仓库当前 CI/Release 使用 GitHub Actions；若改用其它流水线，同步更新本小节描述。
+
