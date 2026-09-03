@@ -46,6 +46,12 @@ jobs:
         with:
           version: v1.62.2
           args: --timeout=5m ./...
+          # The module's go directive (1.26.6) is newer than the Go used to
+          # build the precompiled golangci-lint binaries, so golangci-lint
+          # refuses to load config ("Go used to build is lower than targeted").
+          # Building golangci-lint from source with goinstall uses the runner's
+          # toolchain (go1.26.6), resolving that version check.
+          install-mode: goinstall
 
       - name: go vet
         run: go vet ./...
