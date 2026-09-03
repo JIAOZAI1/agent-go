@@ -52,6 +52,70 @@ func Text(role Role, value string) Message {
 	return Message{Role: role, Content: []ContentBlock{{Kind: ContentText, Text: value}}}
 }
 
+// SystemText creates a system text message.
+func SystemText(value string) Message {
+	return Text(RoleSystem, value)
+}
+
+// UserText creates a user text message.
+func UserText(value string) Message {
+	return Text(RoleUser, value)
+}
+
+// Assistant creates an assistant text message.
+func Assistant(value string) Message {
+	return Text(RoleAssistant, value)
+}
+
+// AssistantText creates an assistant text message.
+func AssistantText(value string) Message {
+	return Assistant(value)
+}
+
+// ToolResult creates a successful tool response message.
+func ToolResult(callID, value string) Message {
+	result := Text(RoleTool, value)
+	result.ToolCallID = callID
+	return result
+}
+
+// ToolError creates a failed tool response message.
+func ToolError(callID, value string) Message {
+	result := ToolResult(callID, value)
+	result.IsError = true
+	return result
+}
+
+// New creates a message from independent copies of blocks.
+func New(role Role, blocks ...ContentBlock) Message {
+	content := make([]ContentBlock, len(blocks))
+	for index, block := range blocks {
+		content[index] = cloneContentBlock(block)
+	}
+	return Message{Role: role, Content: content}
+}
+
+// TextBlock creates a text content block.
+func TextBlock(value string) ContentBlock {
+	return ContentBlock{Kind: ContentText, Text: value}
+}
+
+// ImageURL creates an image content block backed by a URL.
+func ImageURL(url, mimeType string) ContentBlock {
+	return ContentBlock{Kind: ContentImage, URL: url, MIMEType: mimeType}
+}
+
+// ImageData creates an image content block backed by encoded data.
+func ImageData(data, mimeType string) ContentBlock {
+	return ContentBlock{Kind: ContentImage, Data: data, MIMEType: mimeType}
+}
+
+// ToolCallBlock creates a tool-call content block with independent arguments.
+func ToolCallBlock(call ToolCall) ContentBlock {
+	call.Arguments = bytes.Clone(call.Arguments)
+	return ContentBlock{Kind: ContentToolCall, ToolCall: &call}
+}
+
 // ToolCalls returns independent copies of the tool calls carried by value's
 // ContentToolCall blocks, in content order. It returns nil if value has no
 // tool calls.
