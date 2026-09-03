@@ -41,7 +41,7 @@ func TestRendererValidation(t *testing.T) {
 	if _, err := renderer.Render(context.Background(), prompt.Input{}); !errors.Is(err, prompt.ErrNilRenderer) {
 		t.Fatalf("nil renderer error = %v", err)
 	}
-	if _, err := prompt.NewStatic("x").Render(nil, prompt.Input{}); !errors.Is(err, prompt.ErrInvalidContext) {
+	if _, err := prompt.NewStatic("x").Render(nil, prompt.Input{}); !errors.Is(err, prompt.ErrInvalidContext) { //nolint:staticcheck // deliberate nil-context negative test
 		t.Fatalf("nil context error = %v", err)
 	}
 }
