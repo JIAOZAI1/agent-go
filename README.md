@@ -38,6 +38,7 @@ import (
     "github.com/JIAOZAI1/agent-go/model"
     "github.com/JIAOZAI1/agent-go/provider/openai"
     "github.com/JIAOZAI1/agent-go/session"
+    "github.com/JIAOZAI1/agent-go/strategy/toolloop"
     "github.com/JIAOZAI1/agent-go/tool"
 )
 
@@ -63,19 +64,27 @@ func main() {
     store := session.NewMemoryStore()
     key := session.Key{Scope: "demo", ID: "session-1"}
 
-    // 4) 用公共能力约定组装 ToolLoop 运行策略（Executor 必填，Tools/Store 可选）
-    loop, err := agent.NewToolLoopAgent(agent.ToolLoopOptions{
-        Executor:  executor,
-        Tools:     tools,
-        Store:     store,
-        EventSink: nil, // 需要领域事件时传一个 agent.EventSink 实现（如 FanoutSink）
-    })
+    // 4) 注册可复用策略实例，并构建冻结后的 Runtime。
+    loop, err := toolloop.New(toolloop.Options{})
+    if err != nil {
+        panic(err)
+    }
+    factory := agent.NewDefaultStrategyFactory()
+    if err := factory.Register("tool-loop", loop); err != nil {
+        panic(err)
+    }
+    if err := factory.Default("tool-loop"); err != nil {
+        panic(err)
+    }
+    runtime, err := agent.NewRuntimeBuilder().Executor(executor).Tools(tools).
+        Session(store).StrategyFactory(factory).Build()
     if err != nil {
         panic(err)
     }
 
-    // 5) 执行一轮，得到最终回复与端结束统计
-    result, err := loop.Run(ctx, agent.RunRequest{
+    // 5) 执行一轮，得到最终回复与运行统计。
+    result, err := runtime.Run(ctx, agent.Request{
+        Strategy:   "tool-loop",
         SessionKey: key,
         Input:      message.Text(message.RoleUser, "你好，请帮我查一下今天的天气。"),
     })
@@ -89,14 +98,17 @@ func main() {
 说明：
 
 - `agent` 下层细分为可单独引入的原子包（`model` / `message` / `tool` / `prompt` / `session` 等），可按需选择，避免整包耦合。
-- `agent` 包持有一致的 `RunEnv` / `RunRequest` / `RunResult` 公共契约，运行策略（如 `ToolLoopAgent`）围绕它们编程。
+- `agent` 提供不可变 `AgentRuntime`、Request/Result 和策略工厂；策略通过独立 `scope` 包读取运行能力与单次状态。
 - 版本间的发布通过语义化 tag 自动完成：可 `git tag vX.Y.Z && git push origin vX.Y.Z` 触发 GitHub Actions `release` workflow 创建 GitHub Release（见仓库 `.github/workflows/release.yml`）。
 
 ## 包目录
 
 | 包 | 说明 |
 | --- | --- |
-| `agent` | 运行策略与运行契约（RunEnv/RunRequest/RunResult、ToolLoop、RunScope 状态）| 
+| `agent` | AgentRuntime、Request/Result、Strategy 与策略工厂 |
+| `scope` | Env、单次运行 Scope、统计状态和公开 Builder |
+| `event` | 运行领域事件、EventSink 与 FanoutSink |
+| `strategy/toolloop` | 模型与工具循环策略实现 |
 | `model` | 模型描述、请求响应与 Executor 契约 |
 | `provider` | Provider 描述与协议类型 |
 | `provider/openai` | OpenAI Chat Completions 执行器（含工具调用）| 

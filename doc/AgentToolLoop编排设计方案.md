@@ -1,5 +1,7 @@
 # Agent ToolLoop 编排设计方案
 
+> 本方案已被 [AgentRuntime与运行策略架构重构设计方案.md](AgentRuntime与运行策略架构重构设计方案.md) 取代；ToolLoop 已迁移为 `strategy/toolloop.Strategy`。以下内容仅保留为历史记录。
+
 ## 1. 背景
 
 `agent-go` 目前已经具备 `model`（模型执行）、`tool`（工具执行）、`prompt`（system prompt 渲染）、`session`（会话历史存储）、`agent`（运行领域事件）等独立组件，但没有任何实现把它们组合成一个可运行的 Agent。`agent.Agent` 接口目前只是 `Run(ctx, message.Message) (message.Message, error)`，没有具体实现。

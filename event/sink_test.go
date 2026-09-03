@@ -1,4 +1,4 @@
-package agent_test
+package event_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/JIAOZAI1/agent-go/agent"
+	"github.com/JIAOZAI1/agent-go/event"
 	"github.com/JIAOZAI1/agent-go/message"
 	"github.com/JIAOZAI1/agent-go/tool"
 )
@@ -16,9 +16,9 @@ func TestFanoutPublishesToSubscribersAndCopiesData(t *testing.T) {
 	var wait sync.WaitGroup
 	wait.Add(2)
 	seen := make(chan string, 1)
-	sink := agent.NewFanoutSink(agent.FanoutOptions{QueueSize: 4})
-	first, err := sink.Subscribe("first", func(_ context.Context, event agent.Event) error {
-		data := event.Data.(agent.ToolCallRequested)
+	sink := event.NewFanoutSink(event.FanoutOptions{QueueSize: 4})
+	first, err := sink.Subscribe("first", func(_ context.Context, value event.Event) error {
+		data := value.Data.(event.ToolCallRequested)
 		data.Call.Arguments[0] = 'X'
 		wait.Done()
 		return nil
@@ -26,8 +26,8 @@ func TestFanoutPublishesToSubscribersAndCopiesData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := sink.Subscribe("second", func(_ context.Context, event agent.Event) error {
-		data := event.Data.(agent.ToolCallRequested)
+	second, err := sink.Subscribe("second", func(_ context.Context, value event.Event) error {
+		data := value.Data.(event.ToolCallRequested)
 		seen <- string(data.Call.Arguments)
 		wait.Done()
 		return nil
@@ -37,11 +37,11 @@ func TestFanoutPublishesToSubscribersAndCopiesData(t *testing.T) {
 	}
 	defer sink.Close()
 
-	event := agent.Event{
+	event := event.Event{
 		RunID:    "run-1",
 		Sequence: 1,
-		Type:     agent.EventToolCallRequested,
-		Data:     agent.ToolCallRequested{Call: tool.Call{Name: "search", Arguments: []byte(`{"q":"go"}`)}},
+		Type:     event.EventToolCallRequested,
+		Data:     event.ToolCallRequested{Call: tool.Call{Name: "search", Arguments: []byte(`{"q":"go"}`)}},
 	}
 	if err := sink.Publish(context.Background(), event); err != nil {
 		t.Fatalf("Publish() error = %v", err)
@@ -58,8 +58,8 @@ func TestFanoutPublishesToSubscribersAndCopiesData(t *testing.T) {
 func TestFanoutDropsNewestWhenQueueIsFull(t *testing.T) {
 	started := make(chan struct{})
 	release := make(chan struct{})
-	sink := agent.NewFanoutSink(agent.FanoutOptions{QueueSize: 1, Overflow: agent.OverflowDropNewest})
-	subscription, err := sink.Subscribe("slow", func(_ context.Context, _ agent.Event) error {
+	sink := event.NewFanoutSink(event.FanoutOptions{QueueSize: 1, Overflow: event.OverflowDropNewest})
+	subscription, err := sink.Subscribe("slow", func(_ context.Context, _ event.Event) error {
 		select {
 		case <-started:
 		case <-time.After(time.Second):
@@ -73,8 +73,8 @@ func TestFanoutDropsNewestWhenQueueIsFull(t *testing.T) {
 	}
 	defer sink.Close()
 
-	newEvent := func(sequence uint64) agent.Event {
-		return agent.Event{RunID: "run-1", Sequence: sequence, Type: agent.EventRunStarted, Data: agent.RunStarted{}}
+	newEvent := func(sequence uint64) event.Event {
+		return event.Event{RunID: "run-1", Sequence: sequence, Type: event.EventRunStarted, Data: event.RunStarted{}}
 	}
 	close(started)
 	if err := sink.Publish(context.Background(), newEvent(1)); err != nil {
@@ -105,19 +105,19 @@ func TestFanoutDropsNewestWhenQueueIsFull(t *testing.T) {
 func TestFanoutConsumerErrorsAreIsolated(t *testing.T) {
 	received := make(chan struct{})
 	reported := make(chan error, 1)
-	sink := agent.NewFanoutSink(agent.FanoutOptions{
+	sink := event.NewFanoutSink(event.FanoutOptions{
 		QueueSize: 1,
 		OnError: func(_ string, err error) {
 			reported <- err
 		},
 	})
-	failed, err := sink.Subscribe("failed", func(context.Context, agent.Event) error {
+	failed, err := sink.Subscribe("failed", func(context.Context, event.Event) error {
 		return errors.New("consumer failed")
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	working, err := sink.Subscribe("working", func(context.Context, agent.Event) error {
+	working, err := sink.Subscribe("working", func(context.Context, event.Event) error {
 		close(received)
 		return nil
 	})
@@ -126,7 +126,7 @@ func TestFanoutConsumerErrorsAreIsolated(t *testing.T) {
 	}
 	defer sink.Close()
 
-	event := agent.Event{RunID: "run-1", Sequence: 1, Type: agent.EventInputReceived, Data: agent.InputReceived{Message: message.Text(message.RoleUser, "hello")}}
+	event := event.Event{RunID: "run-1", Sequence: 1, Type: event.EventInputReceived, Data: event.InputReceived{Message: message.Text(message.RoleUser, "hello")}}
 	if err := sink.Publish(context.Background(), event); err != nil {
 		t.Fatal(err)
 	}
@@ -158,17 +158,17 @@ func TestFanoutConsumerErrorsAreIsolated(t *testing.T) {
 }
 
 func TestFanoutValidationAndClose(t *testing.T) {
-	sink := agent.NewFanoutSink(agent.FanoutOptions{})
-	if _, err := sink.Subscribe("", nil); !errors.Is(err, agent.ErrInvalidSubscription) {
+	sink := event.NewFanoutSink(event.FanoutOptions{})
+	if _, err := sink.Subscribe("", nil); !errors.Is(err, event.ErrInvalidSubscription) {
 		t.Fatalf("Subscribe() error = %v, want invalid subscription", err)
 	}
-	if err := sink.Publish(context.Background(), agent.Event{}); !errors.Is(err, agent.ErrInvalidEvent) {
+	if err := sink.Publish(context.Background(), event.Event{}); !errors.Is(err, event.ErrInvalidEvent) {
 		t.Fatalf("Publish() error = %v, want invalid event", err)
 	}
 	if err := sink.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
 	}
-	if err := sink.Publish(context.Background(), agent.Event{RunID: "run", Sequence: 1, Type: agent.EventRunStarted}); !errors.Is(err, agent.ErrSinkClosed) {
+	if err := sink.Publish(context.Background(), event.Event{RunID: "run", Sequence: 1, Type: event.EventRunStarted}); !errors.Is(err, event.ErrSinkClosed) {
 		t.Fatalf("Publish() after Close error = %v, want sink closed", err)
 	}
 }

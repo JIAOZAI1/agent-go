@@ -1,6 +1,6 @@
 // Command weather_agent demonstrates composing agent-go's public components
 // into a tool-calling agent loop entirely offline (no external model provider
-// and no API key). It wires a ToolLoopAgent with an in-memory session store, a
+// and no API key). It wires an AgentRuntime with an in-memory session store, a
 // small tool catalog, and a FanoutSink that prints lifecycle events, driven by
 // a fake Executor that replays a scripted weather-tool conversation.
 //
@@ -16,9 +16,11 @@ import (
 	"os"
 
 	"github.com/JIAOZAI1/agent-go/agent"
+	"github.com/JIAOZAI1/agent-go/event"
 	"github.com/JIAOZAI1/agent-go/message"
 	"github.com/JIAOZAI1/agent-go/model"
 	"github.com/JIAOZAI1/agent-go/session"
+	"github.com/JIAOZAI1/agent-go/strategy/toolloop"
 	"github.com/JIAOZAI1/agent-go/tool"
 )
 
@@ -52,9 +54,9 @@ func main() {
 
 	// A FanoutSink prints every life-cycle event to stdout, demonstrating the
 	// observable side of a run.
-	sink := agent.NewFanoutSink(agent.FanoutOptions{Overflow: agent.OverflowDropNewest})
-	_, err = sink.Subscribe("stdout", func(_ context.Context, event agent.Event) error {
-		fmt.Printf("event %-3d %-28s\n", event.Sequence, event.Type)
+	sink := event.NewFanoutSink(event.FanoutOptions{Overflow: event.OverflowDropNewest})
+	_, err = sink.Subscribe("stdout", func(_ context.Context, value event.Event) error {
+		fmt.Printf("event %-3d %-28s\n", value.Sequence, value.Type)
 		return nil
 	})
 	if err != nil {
@@ -62,17 +64,24 @@ func main() {
 	}
 	defer sink.Close()
 
-	loop, err := agent.NewToolLoopAgent(agent.ToolLoopOptions{
-		Executor:  executor,
-		Tools:     registry,
-		Store:     store,
-		EventSink: sink,
-	})
+	loop, err := toolloop.New(toolloop.Options{})
 	if err != nil {
-		fail("new agent: %v", err)
+		fail("new strategy: %v", err)
+	}
+	factory := agent.NewDefaultStrategyFactory()
+	if err := factory.Register("tool-loop", loop); err != nil {
+		fail("register strategy: %v", err)
+	}
+	if err := factory.Default("tool-loop"); err != nil {
+		fail("default strategy: %v", err)
+	}
+	runtime, err := agent.NewRuntimeBuilder().Executor(executor).Tools(registry).
+		Session(store).EventSink(sink).StrategyFactory(factory).Build()
+	if err != nil {
+		fail("new runtime: %v", err)
 	}
 
-	result, err := loop.Run(ctx, agent.RunRequest{
+	result, err := runtime.Run(ctx, agent.Request{
 		SessionKey: key,
 		Input:      message.Text(message.RoleUser, "今天北京天气怎么样？"),
 	})

@@ -1,4 +1,4 @@
-package agent
+package event
 
 import (
 	"context"
@@ -22,8 +22,8 @@ var (
 	ErrSinkClosed = errors.New("agent: event sink is closed")
 )
 
-// EventSink receives events produced by an Agent run.
-type EventSink interface {
+// Sink receives events produced by an Agent run.
+type Sink interface {
 	Publish(context.Context, Event) error
 }
 
@@ -291,4 +291,4 @@ func cloneCall(value tool.Call) tool.Call {
 	return value
 }
 
-var _ EventSink = (*FanoutSink)(nil)
+var _ Sink = (*FanoutSink)(nil)

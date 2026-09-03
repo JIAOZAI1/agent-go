@@ -1,6 +1,6 @@
 # Agent 运行 Scope 状态管理设计方案
 
-状态：**已确认并已实现**（`agent/runscope.go` 新增；`toolloop.go` 以 scope 收口；`RunResult` 新增 `Stats`；配套单测/集成断言均绿）。核心取舍采纳讨论结论：
+状态：**已被 [AgentRuntime与运行策略架构重构设计方案.md](AgentRuntime与运行策略架构重构设计方案.md) 取代**。Scope 已迁入独立 `scope` 包；以下内容仅保留为历史记录（`agent/runscope.go` 新增；`toolloop.go` 以 scope 收口；`RunResult` 新增 `Stats`；配套单测/集成断言均绿）。核心取舍采纳讨论结论：
 - Scope **独立文件** `agent/runscope.go`（过程对象），`agent/run.go` 只保留纯数据契约与运行入口契约；
 - `RunMeta`/`RunStats` 作为 Scope 的身份面与统计面，统一承载在 Scope 内；
 - Turn = 一次循环；Step = 循环内由运行策略自定义粒度的步骤；Scope 只保存 StepCount 整数，不规定 Step 语义；

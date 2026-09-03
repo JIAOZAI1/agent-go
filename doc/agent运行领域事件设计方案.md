@@ -1,5 +1,7 @@
 # Agent 运行领域事件设计方案
 
+> 事件契约已按 [AgentRuntime与运行策略架构重构设计方案.md](AgentRuntime与运行策略架构重构设计方案.md) 迁入独立 `event` 包。以下内容保留为历史设计记录。
+
 ## 1. 目标
 
 为 agent-go 定义统一的 Agent 运行领域事件，使运行策略能够向日志、指标、Tracing、Web UI、审计和调试组件提供结构化运行信息。

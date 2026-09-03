@@ -1,6 +1,6 @@
 # Agent 运行策略抽象设计（方案 1 落地稿）
 
-状态：**已落地实现**。相关代码：`agent/run.go`（新增公共契约层）、`agent/toolloop.go`（构造收敛）、`agent/run_test.go`（新增）。实现过程中发现并记录一项 Go 关键约束，导致"内嵌 RunEnv 到 ToolLoopOptions"不可行的修正（见 §5.4）。
+状态：**已被 [AgentRuntime与运行策略架构重构设计方案.md](AgentRuntime与运行策略架构重构设计方案.md) 取代**。以下内容仅保留为历史决策记录。相关代码：`agent/run.go`（新增公共契约层）、`agent/toolloop.go`（构造收敛）、`agent/run_test.go`（新增）。实现过程中发现并记录一项 Go 关键约束，导致"内嵌 RunEnv 到 ToolLoopOptions"不可行的修正（见 §5.4）。
 
 ## 1. 背景与问题
 
