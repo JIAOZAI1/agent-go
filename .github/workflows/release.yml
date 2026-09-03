@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  # Pure Go library: publishing is done with an immutable semantic-version tag
+  # (vX.Y.Z). Consumers pull the module through the Go module proxy / GitHub by
+  # that tag; a GitHub Release is created here for visibility and notes. No
+  # binaries are assembled for the library itself.
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history so the generated changelog can compare tags.
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test (including race detector)
+        run: go test -race ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      # Guard: the tag must be a valid Go semantic version.
+      - name: Validate tag
+        run: |
+          ref="$(basename "${{ github.ref }}")" # e.g. v1.2.3
+          if ! printf '%s' "$ref" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([+-].*)?$'; then
+            echo "::error::tag '$ref' is not a valid Go semantic version tag"
+            exit 1
+          fi
+
+      - name: Compute release notes
+        id: notes
+        shell: bash
+        run: |
+          # Notes = commits since the previous tag on this branch (or, when no
+          # previous tag exists yet, the whole ref's history).
+          prev="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          if [ -n "$prev" ]; then
+            range="${prev}..${GITHUB_REF_NAME}"
+          else
+            range="${GITHUB_REF_NAME}"
+          fi
+          notes="$(git log --oneline --no-merges "$range")"
+          {
+            echo 'log<<EOF'
+            printf '%s' "$notes"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: |
+            ## Changes
+
+            ${{ steps.notes.outputs.log }}
+          draft: false
+          prerelease: false

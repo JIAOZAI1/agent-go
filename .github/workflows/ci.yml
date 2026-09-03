@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# Tag pushes (v*) are covered by the dedicated Release workflow, which reuses
+# the same gates, to avoid running CI twice per release.
+permissions:
+  contents: read
+
+jobs:
+  # Static analysis: formatting and lint.
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # NOTE: go.mod declares `go 1.26.6`. setup-go will try to install that
+      # exact toolchain from go-version-file. If that version is not yet an
+      # official release on the hosted runners, override `go-version` to an
+      # installable value that still satisfies go.mod.
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Check formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "gofmt needed on:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.62.2
+          args: --timeout=5m ./...
+
+      - name: go vet
+        run: go vet ./...
+
+  # Compile and run the tests, including the race detector.
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./...
+
+      # The race detector requires cgo/a C compiler. GitHub-hosted Linux
+      # runners include gcc, so run -race there only.
+      - name: Test with race detector
+        if: runner.os == 'Linux'
+        run: go test -race ./...
