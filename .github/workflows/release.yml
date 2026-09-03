@@ -60,12 +60,10 @@ jobs:
             range="${GITHUB_REF_NAME}"
           fi
           notes="$(git log --oneline --no-merges "$range")"
-          {
-            echo 'log<<EOF'
-            printf '%s' "$notes"
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-
+          [ -n "$notes" ] || notes="No commits since the previous tag."
+          # Write the multiline value to $GITHUB_OUTPUT. Every line must end in
+          # a newline so the EOF trailing delimiter sits on its own line.
+          printf 'log<<EOF\n%s\nEOF\n' "$notes" >> "$GITHUB_OUTPUT"
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
