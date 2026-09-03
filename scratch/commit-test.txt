@@ -1,0 +1,4 @@
+# Scratch: unrelated connectivity test
+
+This file is an unrelated test commit verifying the git commit + push pipeline.
+Created 2026-09-03T20:42:42Z. Safe to delete.
