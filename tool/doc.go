@@ -1,2 +1,2 @@
-// Package tool defines contracts for tools that an agent can invoke.
+// Package tool defines provider-independent tools and their execution runtime.
 package tool

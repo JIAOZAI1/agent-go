@@ -54,6 +54,35 @@ func TestCollect(t *testing.T) {
 	}
 }
 
+func TestCollectAssemblesTextAndToolCalls(t *testing.T) {
+	stream := &testStream{
+		events: []Event{
+			{Delta: "checking weather"},
+			{ToolCall: &message.ToolCall{ID: "1", Name: "get_weather", Arguments: []byte(`{"city":"sf"}`)}},
+			{ToolCall: &message.ToolCall{ID: "2", Name: "get_time", Arguments: []byte(`{}`)}},
+			{FinishReason: FinishToolCall},
+		},
+	}
+
+	got, err := Collect(context.Background(), stream)
+	if err != nil {
+		t.Fatalf("Collect() error = %v", err)
+	}
+	if got.FinishReason != FinishToolCall {
+		t.Fatalf("Collect() FinishReason = %v, want %v", got.FinishReason, FinishToolCall)
+	}
+	if len(got.Message.Content) != 3 {
+		t.Fatalf("Collect() message content = %+v, want 1 text block + 2 tool call blocks", got.Message.Content)
+	}
+	if got.Message.Content[0].Kind != message.ContentText || got.Message.Content[0].Text != "checking weather" {
+		t.Errorf("Collect() text block = %+v", got.Message.Content[0])
+	}
+	calls := message.ToolCalls(got.Message)
+	if len(calls) != 2 || calls[0].Name != "get_weather" || calls[1].Name != "get_time" {
+		t.Errorf("message.ToolCalls(Collect() message) = %+v, want get_weather then get_time", calls)
+	}
+}
+
 func TestCollectReturnsReceiveErrorAndCloses(t *testing.T) {
 	receiveErr := errors.New("receive failed")
 	stream := &errorStream{err: receiveErr}

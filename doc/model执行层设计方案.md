@@ -82,6 +82,7 @@ type Factory interface {
 // Request contains the input for one model generation.
 type Request struct {
 	Messages []message.Message
+	Tools    []tool.Spec // 可提供给模型的工具列表；为空表示不提供工具
 	Options  Options
 }
 
@@ -94,6 +95,8 @@ type Options struct {
 ```
 
 使用指针表示可选数值参数，以区分“未设置”和“显式设置为零”。厂商不支持某个参数时，由适配器决定忽略、转换或返回不支持错误，但不能让厂商专属字段泄漏到公共请求结构中。
+
+`Tools` 直接复用 [工具系统设计方案.md](工具系统设计方案.md) 定义的 `tool.Spec`，不新增镜像类型：`tool` 包零依赖，`model → tool` 是安全的单向叶子依赖（详见 §13 依赖方向）。厂商不支持工具调用时，由适配器决定忽略该字段或返回 `ErrorUnsupported`。
 
 ## 6. 通用响应
 
@@ -210,11 +213,14 @@ type Stream interface {
 
 type Event struct {
 	Delta        string
+	ToolCall     *message.ToolCall
 	FinishReason FinishReason
 }
 ```
 
 对于原生支持流式的 provider，适配器应逐步返回增量事件。对于只支持完整响应的 provider，适配器应在内部等待完整响应，然后包装为至少一个内容事件和一个结束事件，以满足统一契约。
+
+`ToolCall` 字段是工具调用意图在流式契约中的正式表达：非 nil 时表示本次事件携带一个完整的工具调用。每个 `Event` 最多携带一个工具调用，不做增量 JSON 片段拼接；provider 有多个工具调用时依次发送多个只携带 `ToolCall` 的事件。这是抽象执行层的契约，不是某个 provider 的私有实现细节——具体 provider 只需要按此契约吐出事件，不需要自己发明表达工具调用的方式（详见 [OpenAI工具调用设计方案.md](OpenAI工具调用设计方案.md) §4.2）。
 
 上层如需普通的完整响应，可以提供独立的收集函数：
 
@@ -222,7 +228,7 @@ type Event struct {
 func Collect(ctx context.Context, stream Stream) (Response, error)
 ```
 
-该便利函数不属于 `Executor` 核心接口，避免同时维护两套执行语义。
+`Collect` 同时累积 `Delta` 文本和 `ToolCall`，把二者组装成一条可能同时包含 `message.ContentText` 和 `message.ContentToolCall` 块的 assistant 消息。该便利函数不属于 `Executor` 核心接口，避免同时维护两套执行语义，但必须和手动 `Recv` 循环遵循同一套累积规则，不能只有 `Collect` 能正确保留工具调用信息。
 
 流式接口必须明确：
 
@@ -233,7 +239,7 @@ func Collect(ctx context.Context, stream Stream) (Response, error)
 
 ## 10. 工具调用边界
 
-模型执行器只负责识别并返回工具调用意图，不直接执行工具。
+模型执行器只负责识别并返回工具调用意图，不直接执行工具。工具调用意图通过 §9 中 `Event.ToolCall`（流式）和 `Response.Message` 里的 `message.ContentToolCall` 块（`Collect` 组装后）表达，是模型执行层的公开契约，不是各 provider 适配层各自约定的私有格式。
 
 ```text
 Agent
@@ -315,10 +321,14 @@ provider/
 ```text
 agent ──> model
 agent ──> message
+model ──> message
+model ──> tool
 provider/openai ──> model
 provider/openai ──> message
 provider/anthropic ──> model
 ```
+
+`model ──> tool` 是为了让 `Request.Tools` 使用 `tool.Spec` 而新增的依赖；`Event.ToolCall` 使用的是 `message.ToolCall`，不额外引入依赖（详见 [OpenAI工具调用设计方案.md](OpenAI工具调用设计方案.md) §4）。`tool` 包本身零依赖，是安全的单向叶子依赖，不产生循环。
 
 `model` 包不得反向依赖具体 provider。
 

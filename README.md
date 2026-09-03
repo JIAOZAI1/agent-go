@@ -25,6 +25,7 @@ agent-go 是一个轻量级的 AI Agent 构建框架。
 - `agent`：Agent 核心抽象；
 - `model`：模型描述和模型调用契约；
 - `provider`：Provider 描述和协议类型；
+- `provider/openai`：OpenAI Chat Completions 执行器；
 - `message`：Agent 与模型之间的消息类型；
 - `tool`：可组合工具的执行契约。
 - `prompt`：静态和模板化 system prompt 渲染；

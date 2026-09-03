@@ -52,6 +52,21 @@ func Text(role Role, value string) Message {
 	return Message{Role: role, Content: []ContentBlock{{Kind: ContentText, Text: value}}}
 }
 
+// ToolCalls returns independent copies of the tool calls carried by value's
+// ContentToolCall blocks, in content order. It returns nil if value has no
+// tool calls.
+func ToolCalls(value Message) []ToolCall {
+	var calls []ToolCall
+	for _, block := range value.Content {
+		if block.Kind == ContentToolCall && block.ToolCall != nil {
+			call := *block.ToolCall
+			call.Arguments = bytes.Clone(call.Arguments)
+			calls = append(calls, call)
+		}
+	}
+	return calls
+}
+
 // Clone returns an independent copy of the message and all reference-backed fields.
 func Clone(value Message) Message {
 	content := value.Content

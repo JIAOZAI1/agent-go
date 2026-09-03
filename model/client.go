@@ -4,11 +4,13 @@ import (
 	"context"
 
 	"github.com/JIAOZAI1/agent-go/message"
+	"github.com/JIAOZAI1/agent-go/tool"
 )
 
 // Request contains the information required to generate a model response.
 type Request struct {
 	Messages []message.Message
+	Tools    []tool.Spec
 	Options  Options
 }
 
