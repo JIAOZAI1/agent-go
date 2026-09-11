@@ -101,7 +101,7 @@ func (e *Executor) Generate(ctx context.Context, request model.Request) (model.S
 		}
 		return nil, &model.Error{Kind: model.ErrorUnavailable, Err: err}
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		return nil, statusError(response.StatusCode)

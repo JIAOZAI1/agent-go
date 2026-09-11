@@ -35,7 +35,11 @@ func TestFanoutPublishesToSubscribersAndCopiesData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer sink.Close()
+	defer func() {
+		if err := sink.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+	}()
 
 	event := event.Event{
 		RunID:    "run-1",
@@ -71,7 +75,11 @@ func TestFanoutDropsNewestWhenQueueIsFull(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer sink.Close()
+	defer func() {
+		if err := sink.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+	}()
 
 	newEvent := func(sequence uint64) event.Event {
 		return event.Event{RunID: "run-1", Sequence: sequence, Type: event.EventRunStarted, Data: event.RunStarted{}}
@@ -124,7 +132,11 @@ func TestFanoutConsumerErrorsAreIsolated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer sink.Close()
+	defer func() {
+		if err := sink.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+	}()
 
 	event := event.Event{RunID: "run-1", Sequence: 1, Type: event.EventInputReceived, Data: event.InputReceived{Message: message.Text(message.RoleUser, "hello")}}
 	if err := sink.Publish(context.Background(), event); err != nil {

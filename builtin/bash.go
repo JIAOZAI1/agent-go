@@ -139,8 +139,8 @@ func (b *boundedBuffer) String() string { return b.b.String() }
 // optional workdir argument, confined to cfg.Root.
 func (t *shellTool) resolveDir(workdirArg string) string {
 	if workdirArg == "" {
-		if t.Config.WorkDir != "" {
-			abs := t.Config.WorkDir
+		if t.WorkDir != "" {
+			abs := t.WorkDir
 			if !filepath.IsAbs(abs) {
 				abs = filepath.Join(t.root, abs)
 			}

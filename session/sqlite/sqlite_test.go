@@ -310,7 +310,11 @@ func TestStorePersistsAcrossReopen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open#2 error = %v", err)
 	}
-	defer store2.Close()
+	defer func() {
+		if err := store2.Close(); err != nil {
+			t.Errorf("Close#2 error = %v", err)
+		}
+	}()
 	snap, err := store2.Load(context.Background(), key)
 	if err != nil {
 		t.Fatalf("Load#2 error = %v", err)

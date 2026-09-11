@@ -1,6 +1,6 @@
 module github.com/JIAOZAI1/agent-go
 
-go 1.26.6
+go 1.27.1
 
 require modernc.org/sqlite v1.58.0
 

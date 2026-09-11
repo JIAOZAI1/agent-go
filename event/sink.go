@@ -159,7 +159,7 @@ func (s *FanoutSink) Close() error {
 	s.mu.Unlock()
 
 	for _, value := range subscribers {
-		value.Close()
+		_ = value.Close() // subscriber.Close always returns nil.
 	}
 	s.wait.Wait()
 	return nil

@@ -22,10 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # NOTE: go.mod declares `go 1.26.6`. setup-go will try to install that
-      # exact toolchain from go-version-file. If that version is not yet an
-      # official release on the hosted runners, override `go-version` to an
-      # installable value that still satisfies go.mod.
+      # Keep CI on the Go toolchain declared in go.mod.
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -42,15 +39,11 @@ jobs:
           fi
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: v1.62.2
+          version: v2.13.2
           args: --timeout=5m ./...
-          # The module's go directive (1.26.6) is newer than the Go used to
-          # build the precompiled golangci-lint binaries, so golangci-lint
-          # refuses to load config ("Go used to build is lower than targeted").
-          # Building golangci-lint from source with goinstall uses the runner's
-          # toolchain (go1.26.6), resolving that version check.
+          # Build with the project's Go toolchain instead of an older binary.
           install-mode: goinstall
 
       - name: go vet

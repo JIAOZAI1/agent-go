@@ -120,18 +120,3 @@ func (c Config) cfgShell() string {
 	}
 	return "/bin/sh"
 }
-
-// workDir returns the directory bash should run in.
-func (c Config) workDir(root string) string {
-	if strings.TrimSpace(c.WorkDir) != "" {
-		// Resolve relative WorkDir against Root for confinement.
-		if filepath.IsAbs(c.WorkDir) {
-			if within(root, c.WorkDir) {
-				return c.WorkDir
-			}
-			return root
-		}
-		return filepath.Join(root, c.WorkDir)
-	}
-	return root
-}

@@ -83,8 +83,8 @@ func (t *editTool) Execute(ctx context.Context, raw json.RawMessage) (tool.Resul
 	content := string(data)
 
 	var result string
-	switch {
-	case args.Old == "":
+	switch args.Old {
+	case "":
 		content += args.New // append
 		result = "appended text to " + filepath.Base(path)
 	default:

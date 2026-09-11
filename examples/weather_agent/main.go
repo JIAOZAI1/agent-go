@@ -62,7 +62,11 @@ func main() {
 	if err != nil {
 		fail("subscribe: %v", err)
 	}
-	defer sink.Close()
+	defer func() {
+		if err := sink.Close(); err != nil {
+			fail("close event sink: %v", err)
+		}
+	}()
 
 	loop, err := toolloop.New(toolloop.Options{})
 	if err != nil {
